@@ -9,37 +9,6 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# In this document, product information (Brand, Price, Category) scraped from SenHeng were processed and explored:
-1. Examined SH_raw:
-+ Checked for missing values and re-format character data
-+ Added extra feature including Category and Original Price
-
-2. Analyzed SH_cleaned: 
-+ Explored which Brands and Categories have the highest number of products listed 
-+ Explored which Laptop and PC Accessories Brands have the highest average Price
-
-# Insights:
-1. Number of product listed:
-*  Brands with the highest number of products listed are TP-Link, Microsoft, MSI, Apple and HP
-*  The majority of products listed are PC Accessories, followed by Laptops
-*  Most of Laptops are Microsoft, followed by Acer, MSI, HP, ASUS, Apple and lastly Huawei
-*  Most of PC Accessories are TP-Link, followed by Apple, MSI, Microsoft, Rapoo, Logitech and Samsung.
-
-2. Average Laptop and PC Accessories Price:
-*  Within Laptops: higher end - Apple (~6500)
-                   medium range - MSI (~4800),HP (~4500), Huawei (~4500), Acer (~4300)
-                   lower end - ASUS (~3500)
-                  Microsoft and Promate Laptop price are too low for a laptop, probably a misclassification error (Ideally will need to run the Scraping again to extract this information, will omit from analysis now on)
-*  Within PC Accessories: higher end - Apple, TP-Link 
-                          medium range - MSI. 
-                          lower end - Samsung, Rapoo, Logitech
-* PC Accessories include many different products, hence further classification is required with more specific scraping. 
-
-# Recommendations:
-*   Laptop listing in terms of Brands is well-distributed with 1 high-end Brand, 1 low-end Brand and mostly 4 medium-range Brands. However, in terms of the number of products for each brands, maybe consider listing more Huawei Laptops. The reason is that this brand is a medium-range Brand but does not have similar number of products listed compared to other medium-range Brands. 
-*   Re-do scraping for more insights on PC Accessories. 
-
-
 ```{r loadPackages, include=TRUE}
 # Load packages
 library(data.table)
@@ -175,15 +144,15 @@ ggplot(SH_cleaned,aes(x=Brand,fill=Category))+
              aes(label=paste(round((..count..)/sum(..count..)*100,1),"%")),
              position=position_stack(vjust=0.5))
 ```
-## Brands with the highest number of products are TP-Link, Microsoft, MSI , Apple and HP
-## The majority of products listed are PC Accessories, followed by Laptops
-## Most of TP-Link products are PC Accessories
-## Microsoft products are mostly Laptops and PC Accessories while most of the number of Apple Accessories doubles that of Apple Laptop. This indicates that there are more Microsoft Laptop models compared to Apple laptop models. 
-## MSI products are balanced between PC Accessories, Laptops, and Monitors.
-## Only 2 Monitor brands including MSI and Huawei
+# Brands with the highest number of products are TP-Link, Microsoft, MSI , Apple and HP
+# The majority of products listed are PC Accessories, followed by Laptops
+# Most of TP-Link products are PC Accessories
+# Microsoft products are mostly Laptops and PC Accessories while most of the number of Apple Accessories doubles that of Apple Laptop. This indicates that there are more Microsoft Laptop models compared to Apple laptop models. 
+# MSI products are balanced between PC Accessories, Laptops, and Monitors.
+# Only 2 Monitor brands including MSI and Huawei
 
 
-## We will focus on Laptops and PC Accessories category 
+# We will focus on Laptops and PC Accessories category 
 ```{r current mean Price by category,fig.width=20,fig.height=20,fig.align="center"}
 # Price summary 
 price_sum<-summarySE(data=SH_cleaned[!is.na(SH_cleaned$Price_1),],measurevar = 'Price_1',groupvars = c('Category','Brand'))
@@ -199,6 +168,6 @@ ggplot(data=price_sum[price_sum$Category %in% c("Laptops",'PC Accessories'),],
          y="Average Price",x="Category")
 ```
 
-## Within laptops, Apple is the most expensive (~6500), followed by MSI (~4800),HP (~4500), Huawei (~4500) and ASUS (~3500). Microsoft is the cheapest (~1800) but the price is too low. Promate price is too low for a laptop, probably a misclassification error. 
-## Within PC Accessories, Apple is the most expensive, followed by TP-Link, MSI and Microsoft. 
+# Within laptops, Apple is the most expensive (~6500), followed by MSI (~4800),HP (~4500), Huawei (~4500) and ASUS (~3500). Microsoft is the cheapest (~1800) but the price is too low. Promate price is too low for a laptop, probably a misclassification error. 
+# Within PC Accessories, Apple is the most expensive, followed by TP-Link, MSI and Microsoft. 
 ```
