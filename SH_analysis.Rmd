@@ -1,0 +1,204 @@
+---
+title: "SH_analysis"
+author: "Phuong Tran"
+date: "28/04/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# In this document, product information (Brand, Price, Category) scraped from SenHeng were processed and explored:
+1. Examined SH_raw:
++ Checked for missing values and re-format character data
++ Added extra feature including Category and Original Price
+
+2. Analyzed SH_cleaned: 
++ Explored which Brands and Categories have the highest number of products listed 
++ Explored which Laptop and PC Accessories Brands have the highest average Price
+
+# Insights:
+1. Number of product listed:
+*  Brands with the highest number of products listed are TP-Link, Microsoft, MSI, Apple and HP
+*  The majority of products listed are PC Accessories, followed by Laptops
+*  Most of Laptops are Microsoft, followed by Acer, MSI, HP, ASUS, Apple and lastly Huawei
+*  Most of PC Accessories are TP-Link, followed by Apple, MSI, Microsoft, Rapoo, Logitech and Samsung.
+
+2. Average Laptop and PC Accessories Price:
+*  Within Laptops: higher end - Apple (~6500)
+                   medium range - MSI (~4800),HP (~4500), Huawei (~4500), Acer (~4300)
+                   lower end - ASUS (~3500)
+                  Microsoft and Promate Laptop price are too low for a laptop, probably a misclassification error (Ideally will need to run the Scraping again to extract this information, will omit from analysis now on)
+*  Within PC Accessories: higher end - Apple, TP-Link 
+                          medium range - MSI. 
+                          lower end - Samsung, Rapoo, Logitech
+* PC Accessories include many different products, hence further classification is required with more specific scraping. 
+
+# Recommendations:
+*   Laptop listing in terms of Brands is well-distributed with 1 high-end Brand, 1 low-end Brand and mostly 4 medium-range Brands. However, in terms of the number of products for each brands, maybe consider listing more Huawei Laptops. The reason is that this brand is a medium-range Brand but does not have similar number of products listed compared to other medium-range Brands. 
+*   Re-do scraping for more insights on PC Accessories. 
+
+
+```{r loadPackages, include=TRUE}
+# Load packages
+library(data.table)
+library(ggplot2)
+library(readr)
+library(plyr)
+library(lattice)
+library(dplyr)
+library(tidyr)
+library(Rmisc)
+```
+
+```{r import data}
+# Import data
+SH_raw <- read_csv("Senheng_compt.csv", 
+    col_types = cols(X1 = col_skip()))
+```
+```{r Examining product data}
+# Examine data
+head(SH_raw)
+```
+
+```{r Format Brand, SKU column}
+# Remove " and ; character from Brand
+SH_raw$Brand<-gsub('\"','',SH_raw$Brand)
+SH_raw$Brand<-gsub(';','',SH_raw$Brand)
+
+# Remove " and ; character from Brand
+SH_raw$SKU<-gsub('\"','',SH_raw$SKU)
+SH_raw$SKU<-gsub(';','',SH_raw$SKU)
+
+```
+
+```{r Check Brand column and set Brand as factor}
+# Summary of Brand column
+table(SH_raw$Brand,useNA = "ifany")
+# Retrieve NA rows
+SH_raw[is.na(SH_raw$Brand),]
+SH_raw[SH_raw$Brand=="",]
+# There are 2 rows with NA values on Brands with 1 empty value. 
+# ASUS row and Microsoft Desktop also missing SKU due to no "Specification section on webpages. Manually enter the missing Brands
+SH_raw[SH_raw$Name=='Microsoft Bluetooth Desktop-Black',]$Brand<-'Microsoft'
+SH_raw[SH_raw$Name=='ASUS ROG Zephyrus M15 LAPTOP 15.6 Inch (i7-10750H/16GB/1 TB SSD/GTX1660TI 6G/WIN10) ASU-GU502L-UAZ087T',]$Brand<-"ASUS"
+SH_raw[SH_raw$Brand=="",]$Brand<-'Microsoft'
+# Double check Brand column
+table(SH_raw$Brand,useNA = "ifany")
+# Set Brand as factor
+SH_raw$Brand<-parse_factor(SH_raw$Brand)
+# There are 17 different brands
+levels(SH_raw$Brand)
+```
+
+```{r Check for duplicated entries assuming SKU is unique code for each product}
+# There are 198 unique SKUs (196 non NAs and 2 NAs) but 329 rows so there must be many duplicated rows
+n_distinct(SH_raw$SKU,na.rm=TRUE)
+# Assign unique SKU for NAs entry for the purpose of subsequent analysis
+SH_raw[is.na(SH_raw$SKU),]
+SH_raw[SH_raw$Name=='Microsoft Bluetooth Desktop-Black',]$SKU<-'sku_1'
+SH_raw[SH_raw$Name=='ASUS ROG Zephyrus M15 LAPTOP 15.6 Inch (i7-10750H/16GB/1 TB SSD/GTX1660TI 6G/WIN10) ASU-GU502L-UAZ087T',]$SKU<-'sku_2'
+# Check again unique SKUs, correct 198 unique SKUs
+n_distinct(SH_raw$SKU,na.rm=TRUE)
+# Remove duplicated entries. There are 200 rows in SH_cleaned but only 198 unique SKUs.
+SH_cleaned<-distinct(SH_raw)
+# Check for discrepancy. Entry with SKU 'APP-MBP13-2020-2USB-CFG' and 'SD-IX40N-CFG' were duplicated
+table(SH_cleaned$SKU)
+# Closer look shows price discrepancy and a manual check reveals that the product 'APP-MBP13-2020-2USB-CFG' 
+#and 'SD-IX40N-CFG' are out of stock. Hence, we can remove 1 entry, keep the other entry with price set to "" for out of stock
+SH_cleaned[SH_cleaned$SKU=='APP-MBP13-2020-2USB-CFG',]
+SH_cleaned<-SH_cleaned[-which(SH_cleaned$SKU=='APP-MBP13-2020-2USB-CFG'&SH_cleaned$Price=='RM489.00'),]
+SH_cleaned[SH_cleaned$SKU=='APP-MBP13-2020-2USB-CFG',]$Price<-""
+
+# Do the same for ''SD-IX40N-CFG' product
+SH_cleaned[SH_cleaned$SKU=='SD-IX40N-CFG',]
+SH_cleaned<-SH_cleaned[-which(SH_cleaned$SKU=='SD-IX40N-CFG'&SH_cleaned$Price=='RM 70.00'),]
+SH_cleaned[SH_cleaned$SKU=='SD-IX40N-CFG',]$Price<-""
+```
+
+
+```{r Clean Price Column, paged.print=TRUE}
+# Summary of Price Column reveals 2 "" values, some 2 prices values (original and discounted) and mostly are single value
+table(SH_cleaned$Price,useNA='ifany')
+# Create column Price_1 of discounted price (if any)
+SH_cleaned$Price_1<-parse_number(SH_cleaned$Price,na=c("","NA"))
+# Create column Price_2 for original price 
+SH_cleaned$Price_2<-SH_cleaned$Price
+# Find all rows with double price entry, their pattern begins with any character followed by .00 and then a white space between 2 price values
+SH_cleaned[grep(".\\.00 " ,SH_cleaned$Price_2),]
+# Use sub() to remove first price, .* represents any character for any number of times, \\. represents '.' character
+SH_cleaned[grep(".\\.00 " ,SH_cleaned$Price_2),]$Price_2<-sub("RM.*\\.00 ","",SH_cleaned[grep(".\\.00 " ,SH_cleaned$Price_2),]$Price_2)
+# Parse_number for Price_2 column
+SH_cleaned$Price_2<-parse_number(SH_cleaned$Price_2)
+# check Price_1 and Price_2 Column one more time
+table(SH_cleaned$Price_1,useNA='ifany')
+table(SH_cleaned$Price_2,useNA='ifany')
+```
+
+
+```{r Assign Category based on Name}
+SH_cleaned<-SH_cleaned %>%
+    mutate(Category=case_when(
+        grepl("Monitor",SH_cleaned$Name,ignore.case = TRUE)==TRUE ~ "Monitors",
+        grepl("Chair",SH_cleaned$Name,ignore.case = TRUE)==TRUE ~ "Gaming Chairs",
+        grepl("Printer|Ink",SH_cleaned$Name,ignore.case = FALSE)==TRUE~"Printers", #Avoid TP-Link
+        grepl("Microsoft 365|Microsoft Office",SH_cleaned$Name,ignore.case = TRUE)==TRUE ~"Software",
+        grepl("Drive|Drives",SH_cleaned$Name,ignore.case = TRUE)==TRUE ~"Storage",
+        grepl("MateBook|Laptop|Surface|Macbook|Aspire|Chromebook|Convertible|Notebook|Helios|Zenbook|Trident|Optix|Prestige",
+              SH_cleaned$Name,ignore.case = TRUE)==TRUE ~ "Laptops",
+        grepl("Pen|Keyboard|Mouse|Keypad|Adapter|Router|Audio|Pad|Port|Wi-fi|Dual Band|Desktop}",SH_cleaned$Name,ignore.case = TRUE)==TRUE ~"PC Accessories",
+        TRUE ~ "Others"
+                            )
+        )
+# Check Category Column, 89% categorized --- not too bad but ideally I would go back to web scraping and scraped the category from the beginning. 
+table(SH_cleaned$Category)
+```
+
+```{r Save the cleaned dataset to csv}
+write.csv(SH_cleaned,"/Users/ccmb_hd/OneDrive - Deakin University/ds_senheng/SH_cleaned.csv")
+```
+
+```{r Set theme for plots}
+# Set theme for plots
+theme_set(theme_bw())
+theme_update(plot.title=element_text(hjust=0.5),plot.subtitle=element_text(hjust=0.5))
+```
+
+
+```{r Distribution of Brand and Category,fig.width=20,fig.height=20,fig.align="center"}
+ggplot(SH_cleaned,aes(x=Brand,fill=Category))+
+  geom_bar(stat="count")+
+  labs(title="Distribution of Brand and Category",
+       x="Brand",y="Number of products")+
+  stat_count(geom = "text",
+             aes(label=paste(round((..count..)/sum(..count..)*100,1),"%")),
+             position=position_stack(vjust=0.5))
+```
+## Brands with the highest number of products are TP-Link, Microsoft, MSI , Apple and HP
+## The majority of products listed are PC Accessories, followed by Laptops
+## Most of TP-Link products are PC Accessories
+## Microsoft products are mostly Laptops and PC Accessories while most of the number of Apple Accessories doubles that of Apple Laptop. This indicates that there are more Microsoft Laptop models compared to Apple laptop models. 
+## MSI products are balanced between PC Accessories, Laptops, and Monitors.
+## Only 2 Monitor brands including MSI and Huawei
+
+
+## We will focus on Laptops and PC Accessories category 
+```{r current mean Price by category,fig.width=20,fig.height=20,fig.align="center"}
+# Price summary 
+price_sum<-summarySE(data=SH_cleaned[!is.na(SH_cleaned$Price_1),],measurevar = 'Price_1',groupvars = c('Category','Brand'))
+
+# Some product category_brand has only 1 entry, thus NA values in the price_sum table. Replace these with 0 in sd column
+price_sum[is.na(price_sum$sd),]$sd<-0
+
+# Graph of average price per category and brand for Laptops and PC Accessories
+ggplot(data=price_sum[price_sum$Category %in% c("Laptops",'PC Accessories'),],
+      aes(x=Category,y=Price_1))+
+      geom_bar(aes(fill=Brand),stat='summary',fun='mean',position="dodge",color="black")+
+    labs(title="Average price per category",
+         y="Average Price",x="Category")
+```
+
+## Within laptops, Apple is the most expensive (~6500), followed by MSI (~4800),HP (~4500), Huawei (~4500) and ASUS (~3500). Microsoft is the cheapest (~1800) but the price is too low. Promate price is too low for a laptop, probably a misclassification error. 
+## Within PC Accessories, Apple is the most expensive, followed by TP-Link, MSI and Microsoft. 
+```
